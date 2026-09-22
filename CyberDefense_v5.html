@@ -1,0 +1,2091 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hacker — Cyber Quiz v13</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: #050508; color: #e2e8f0;
+    font-family: system-ui, -apple-system, Arial, sans-serif;
+    display: flex; justify-content: center; padding: 20px;
+  }
+  .wrap { width: 800px; max-width: 100%; }
+  .game-container { position: relative; border-radius: 12px 12px 0 0; overflow: hidden; }
+  canvas { width: 100%; display: block; background: #050508; }
+
+  #overlay {
+    position: absolute; inset: 0;
+    background: rgba(5, 5, 10, 0.96);
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    text-align: center; padding: 24px;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.35s ease;
+    z-index: 10;
+  }
+  #overlay.show { opacity: 1; pointer-events: auto; }
+  #overlay h1 {
+    font-size: 44px; margin: 0 0 8px;
+    color: #a855f7;
+    text-shadow: 0 0 24px rgba(168, 85, 247, 0.7), 0 0 60px rgba(168, 85, 247, 0.4);
+    font-family: monospace; letter-spacing: 3px;
+  }
+  #overlay.win h1 {
+    color: #22c55e;
+    text-shadow: 0 0 24px rgba(34, 197, 94, 0.7), 0 0 60px rgba(34, 197, 94, 0.4);
+  }
+  #overlay .sub {
+    font-family: monospace; color: #a855f7; font-size: 14px;
+    margin-bottom: 16px; letter-spacing: 2px;
+  }
+  #overlay.win .sub { color: #86efac; }
+  #overlay .stats { font-size: 17px; line-height: 1.8; color: #cbd5e1; margin-bottom: 18px; }
+  #overlay .best { font-size: 14px; color: #94a3b8; margin-bottom: 20px; font-family: monospace; line-height: 1.7; }
+  #overlay .ov-actions {
+    display: flex; gap: 12px; flex-wrap: wrap; justify-content: center;
+  }
+  #overlay button {
+    padding: 12px 28px; background: #7c3aed; color: #0a0a0f; border: none;
+    border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 700;
+    transition: background 0.2s; letter-spacing: 1px; font-family: monospace;
+  }
+  #overlay button:hover { background: #a855f7; }
+  #overlay button.secondary {
+    background: transparent; color: #c4b5fd;
+    border: 1px solid #7c3aed;
+  }
+  #overlay button.secondary:hover {
+    background: #1a1030; border-color: #a855f7; color: #e9d5ff;
+  }
+
+  #hud {
+    background: #0a0a12; padding: 16px;
+    border-radius: 0 0 12px 12px;
+    border-top: 1px solid #1a1a25;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+  }
+  #hud.hidden { display: none; }
+  #hack-label {
+    display: flex; justify-content: space-between; align-items: center;
+    font-family: monospace; font-size: 12px;
+    color: #a855f7; letter-spacing: 2px;
+    margin-bottom: 6px; gap: 12px;
+  }
+  #hack-level { font-weight: 700; transition: color 0.4s; }
+  #hack-qcount { color: #94a3b8; font-size: 11px; }
+  #hack-timer { color: #f59e0b; font-size: 11px; font-weight: 700; min-width: 40px; text-align: right; }
+  #hack-bar {
+    position: relative;
+    width: 100%; height: 22px;
+    border-radius: 4px; overflow: hidden;
+    margin-bottom: 14px;
+    background: linear-gradient(90deg,
+      #22c55e 0%, #84cc16 18%, #eab308 35%, #f97316 52%,
+      #ef4444 70%, #dc2626 85%, #a855f7 100%);
+    box-shadow: inset 0 0 12px rgba(0,0,0,0.8), 0 0 8px rgba(168,85,247,0.2);
+  }
+  #hack-cover {
+    position: absolute; top: 0; right: 0; bottom: 0;
+    width: 100%; background: #0a0a12;
+    transition: width 0.2s linear;
+  }
+  #hack-bar::after {
+    content: ''; position: absolute; inset: 0;
+    background: repeating-linear-gradient(90deg,
+      transparent 0 3px, rgba(0,0,0,0.25) 3px 4px);
+    pointer-events: none;
+  }
+  #question {
+    font-size: 16px; font-weight: 600;
+    margin: 4px 0 12px; min-height: 22px;
+    font-family: monospace; color: #e2e8f0;
+  }
+  #question::before { content: '> '; color: #a855f7; }
+  #answers { display: flex; flex-wrap: wrap; gap: 8px; }
+  #answers button {
+    flex: 1 1 auto; min-width: 140px; padding: 10px 14px;
+    background: #12121c; color: #cbd5e1;
+    border: 1px solid #1f2937; border-radius: 6px;
+    cursor: pointer; font-size: 13px; transition: all 0.15s;
+    font-family: monospace;
+  }
+  #answers button:hover:not(:disabled) {
+    background: #1a1a28; border-color: #a855f7; color: #e2e8f0;
+  }
+  #answers button:disabled { cursor: default; opacity: 0.6; }
+  #answers button.wrong {
+    background: #450a0a; border-color: #ef4444; color: #fca5a5; opacity: 1;
+  }
+  #status {
+    margin-top: 12px; font-weight: 600; min-height: 20px;
+    font-family: monospace; font-size: 13px; letter-spacing: 1px;
+  }
+  #watermark {
+    text-align: right;
+    font-family: monospace;
+    font-size: 11px;
+    color: rgba(168, 85, 247, 0.6);
+    letter-spacing: 1px;
+    margin-top: 8px;
+    text-shadow: 0 0 6px rgba(168, 85, 247, 0.4);
+    user-select: none;
+  }
+
+  /* Nick input screen */
+  #nick-screen {
+    position: absolute; inset: 0;
+    background: rgba(5, 5, 10, 0.98);
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    text-align: center; padding: 24px;
+    z-index: 20;
+    transition: opacity 0.35s ease;
+  }
+  #nick-screen.hidden { opacity: 0; pointer-events: none; }
+  #nick-screen h2 {
+    font-family: monospace; color: #a855f7; font-size: 28px;
+    letter-spacing: 3px; margin: 0 0 24px;
+    text-shadow: 0 0 20px rgba(168, 85, 247, 0.6);
+  }
+  #nick-screen input {
+    padding: 12px 18px; font-size: 16px; font-family: monospace;
+    background: #12121c; color: #e2e8f0;
+    border: 1px solid #7c3aed; border-radius: 8px;
+    outline: none; text-align: center; width: 280px;
+    margin-bottom: 12px;
+  }
+  #nick-screen input:focus {
+    border-color: #a855f7;
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.4);
+  }
+  #nick-screen .consent {
+    font-size: 11px; color: #94a3b8; font-family: monospace;
+    margin-bottom: 20px; max-width: 360px; line-height: 1.5;
+  }
+  #nick-screen button {
+    padding: 12px 32px; background: #7c3aed; color: #fff; border: none;
+    border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 700;
+    font-family: monospace; letter-spacing: 1px;
+    transition: background 0.2s;
+  }
+  #nick-screen button:hover { background: #a855f7; }
+  #nick-screen button:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Menu screen */
+  #menu-screen {
+    position: absolute; inset: 0;
+    background: rgba(5, 5, 10, 0.98);
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    text-align: center; padding: 24px;
+    z-index: 20;
+    transition: opacity 0.35s ease;
+  }
+  #menu-screen.hidden { opacity: 0; pointer-events: none; }
+  #menu-screen h2 {
+    font-family: monospace; color: #a855f7; font-size: 32px;
+    letter-spacing: 3px; margin: 0 0 8px;
+    text-shadow: 0 0 20px rgba(168, 85, 247, 0.6);
+  }
+  #menu-screen .welcome {
+    font-family: monospace; color: #c4b5fd; font-size: 13px;
+    margin-bottom: 28px; letter-spacing: 1px;
+  }
+  .level-card {
+    width: 320px; padding: 16px 20px;
+    margin-bottom: 14px;
+    background: #12121c;
+    border: 1px solid #2d1b4e;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-align: left;
+  }
+  .level-card:hover {
+    border-color: #a855f7;
+    background: #1a1030;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(168, 85, 247, 0.25);
+  }
+  .level-card .title {
+    font-family: monospace; font-size: 18px; font-weight: 700;
+    color: #c4b5fd; margin-bottom: 4px;
+  }
+  .level-card .desc {
+    font-size: 12px; color: #94a3b8; font-family: monospace;
+  }
+  .level-card.easy .title { color: #4ade80; }
+  .level-card.medium .title { color: #facc15; }
+  .level-card.hard .title { color: #f87171; }
+
+  #menu-watermark {
+    position: absolute;
+    bottom: 12px; right: 16px;
+    font-family: monospace;
+    font-size: 11px;
+    color: rgba(168, 85, 247, 0.6);
+    letter-spacing: 1px;
+    text-shadow: 0 0 6px rgba(168, 85, 247, 0.4);
+    user-select: none;
+  }
+
+  .menu-btn-secondary {
+    margin-top: 8px;
+    padding: 10px 24px;
+    background: transparent; color: #c4b5fd;
+    border: 1px solid #7c3aed; border-radius: 8px;
+    cursor: pointer; font-size: 13px; font-weight: 700;
+    font-family: monospace; letter-spacing: 1px;
+    transition: all 0.2s;
+  }
+  .menu-btn-secondary:hover {
+    background: #1a1030; border-color: #a855f7; color: #e9d5ff;
+  }
+
+  /* Results screen */
+  #results-screen {
+    position: absolute; inset: 0;
+    background: rgba(5, 5, 10, 0.99);
+    display: flex; flex-direction: column; justify-content: center; align-items: center;
+    text-align: center; padding: 20px;
+    z-index: 50;
+    transition: opacity 0.35s ease;
+  }
+  #results-screen.hidden { opacity: 0; pointer-events: none; }
+  #results-screen h2 {
+    font-family: monospace; color: #a855f7; font-size: 26px;
+    letter-spacing: 3px; margin: 0 0 16px;
+    text-shadow: 0 0 20px rgba(168, 85, 247, 0.6);
+  }
+  .results-table-wrap {
+    width: 100%; max-width: 640px; max-height: 320px;
+    overflow-y: auto; margin-bottom: 18px;
+    border: 1px solid #2d1b4e; border-radius: 10px;
+    background: #0d0a18;
+  }
+  #results-table {
+    width: 100%; border-collapse: collapse;
+    font-family: monospace; font-size: 13px;
+  }
+  #results-table thead {
+    position: sticky; top: 0;
+    background: #1a1030;
+    z-index: 1;
+  }
+  #results-table th {
+    padding: 10px 12px;
+    color: #c4b5fd;
+    text-align: left;
+    border-bottom: 1px solid #2d1b4e;
+    letter-spacing: 1px;
+    font-size: 12px;
+  }
+  #results-table td {
+    padding: 8px 12px;
+    color: #cbd5e1;
+    border-bottom: 1px solid #1a1030;
+    text-align: left;
+  }
+  #results-table tbody tr:hover {
+    background: #1a1030;
+  }
+  #results-table tbody tr.you {
+    background: rgba(168, 85, 247, 0.12);
+  }
+  #results-table tbody tr.you td {
+    color: #e9d5ff;
+    font-weight: 700;
+  }
+  #results-table .empty-msg {
+    padding: 30px; color: #64748b;
+    font-family: monospace; text-align: center;
+  }
+  #results-back {
+    padding: 12px 28px; background: #7c3aed; color: #fff; border: none;
+    border-radius: 8px; cursor: pointer; font-size: 14px; font-weight: 700;
+    font-family: monospace; letter-spacing: 1px;
+    transition: background 0.2s;
+  }
+  #results-back:hover { background: #a855f7; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="game-container">
+    <canvas id="game" width="800" height="500"></canvas>
+
+    <!-- Nick input screen -->
+    <div id="nick-screen">
+      <h2>CYBER DEFENSE</h2>
+      <input type="text" id="nick-input" placeholder="Введи свой ник..." maxlength="20" autocomplete="off">
+      <div class="consent">
+        Продолжая, вы даёте согласие на обработку персональных данных
+        (никнейм и игровая статистика сохраняются локально).
+      </div>
+      <button id="nick-btn" disabled>ПРОДОЛЖИТЬ</button>
+    </div>
+
+    <!-- Menu screen -->
+    <div id="menu-screen" class="hidden">
+      <h2>ВЫБОР УРОВНЯ</h2>
+      <div class="welcome" id="welcome-text"></div>
+      <div class="level-card easy" data-level="1">
+        <div class="title">🟢 ЛЁГКИЙ</div>
+        <div class="desc">10 простых вопросов · базовые понятия</div>
+      </div>
+      <div class="level-card medium" data-level="2">
+        <div class="title">🟡 СРЕДНИЙ</div>
+        <div class="desc">10 вопросов средней сложности · термины и концепции</div>
+      </div>
+      <div class="level-card hard" data-level="3">
+        <div class="title">🔴 СЛОЖНЫЙ</div>
+        <div class="desc">10 сложных вопросов · глубокие знания</div>
+      </div>
+      <button class="menu-btn-secondary" id="show-results-btn">📊 ТАБЛИЦА РЕЗУЛЬТАТОВ</button>
+      <div id="menu-watermark">created by Valery Zherlygin</div>
+    </div>
+
+    <!-- Results screen -->
+    <div id="results-screen" class="hidden">
+      <h2>ТАБЛИЦА РЕЗУЛЬТАТОВ</h2>
+      <div class="results-table-wrap">
+        <table id="results-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Игрок</th>
+              <th>Очки</th>
+              <th>Время</th>
+              <th>Уровень</th>
+            </tr>
+          </thead>
+          <tbody id="results-tbody"></tbody>
+        </table>
+      </div>
+      <button id="results-back">НАЗАД</button>
+    </div>
+
+    <!-- Overlay -->
+    <div id="overlay">
+      <div class="sub" id="ov-sub">>> SECURITY BREACH DETECTED <<</div>
+      <h1 id="ov-title">SYSTEM HACKED</h1>
+      <div class="stats" id="ov-stats"></div>
+      <div class="best" id="ov-best"></div>
+      <div class="ov-actions">
+        <button id="ov-btn">TRY AGAIN</button>
+        <button id="ov-results-btn" class="secondary">📊 РЕЗУЛЬТАТЫ</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="hud" class="hidden">
+    <div id="hack-label">
+      <span>HACK PROGRESS</span>
+      <span id="hack-level">LVL 1</span>
+      <span id="hack-qcount">0 / 10</span>
+      <span id="hack-timer">16s</span>
+      <span id="hack-pct">0%</span>
+    </div>
+    <div id="hack-bar"><div id="hack-cover"></div></div>
+    <div id="question">Загрузка...</div>
+    <div id="answers"></div>
+    <div id="status"></div>
+    <div id="watermark">created by Valery Zherlygin</div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// КОНСТАНТЫ
+// ============================================================
+const HACK_MAX = 100;
+const CORRECT_ROLLBACK = 5;
+const WRONG_PENALTY = 12;
+const FEEDBACK_CORRECT = 1100;
+const FEEDBACK_WRONG   = 1500;
+
+const BASE_FILL_RATE = 0.6;
+const MAX_FILL_RATE  = 2.2;
+const FILL_RATE_GROWTH = 0.015;
+
+const BASE_Q_INTERVAL = 16;
+const MIN_Q_INTERVAL  = 9;
+const Q_INTERVAL_DROP = 0.06;
+
+const GLITCH_START = 35;
+
+// Порог правильных ответов для победы (70%)
+const WIN_THRESHOLD = 0.7;
+
+// ============================================================
+// БАНК ВОПРОСОВ
+// ============================================================
+const QUESTIONS_EASY = [
+  { q: "Что такое фишинг?", correct: "Социальная инженерия",
+    wrong: ["Тип шифрования", "Сетевой протокол", "Метод сжатия данных"] },
+  { q: "Что такое DDoS-атака?", correct: "Распределённый отказ в обслуживании",
+    wrong: ["Прямое подключение к БД", "Двойное шифрование", "Децентрализованное хранилище"] },
+  { q: "Что такое ransomware?", correct: "Программа-вымогатель",
+    wrong: ["Антивирус нового поколения", "Протокол передачи данных", "Тип firewall"] },
+  { q: "Что означает CVE?", correct: "Common Vulnerabilities and Exposures",
+    wrong: ["Central Vulnerability Engine", "Critical Virus Encyclopedia", "Cyber Verification Environment"] },
+  { q: "Что такое honeypot?", correct: "Ловушка для атакующих",
+    wrong: ["Тип медленного сканирования", "Устройство для бэкапов", "Алгоритм шифрования"] },
+  { q: "Что означает OSINT?", correct: "Разведка из открытых источников",
+    wrong: ["Операционная система Intel", "Открытый сетевой интерфейс", "Онлайн-сканер уязвимостей"] },
+  { q: "Что делает антивирус?", correct: "Обнаруживает и удаляет вредоносное ПО",
+    wrong: ["Ускоряет интернет", "Шифрует файлы", "Создаёт резервные копии"] },
+  { q: "Что такое пароль?", correct: "Секретная строка для аутентификации",
+    wrong: ["Тип файла", "Сетевой адрес", "Протокол связи"] },
+  { q: "Что такое брандмауэр (firewall)?", correct: "Фильтр сетевого трафика",
+    wrong: ["Антивирус", "Браузер", "Текстовый редактор"] },
+  { q: "Что такое двухфакторная аутентификация?", correct: "Два способа подтверждения личности",
+    wrong: ["Два пароля", "Два антивируса", "Два сервера"] },
+];
+
+const QUESTIONS_MEDIUM = [
+  { q: "Что означает аббревиатура IOC?", correct: "Indicator of Compromise",
+    wrong: ["Internet of Clouds", "Input Output Control", "Internal Operations Center"] },
+  { q: "Какой фреймворк описывает тактики и техники атакующих?", correct: "MITRE ATT&CK",
+    wrong: ["OWASP Top 10", "ISO 27001", "NIST CSF"] },
+  { q: "Что делает SIEM-система?", correct: "Собирает и коррелирует логи",
+    wrong: ["Шифрует трафик", "Управляет паролями", "Сканирует порты"] },
+  { q: "Что такое zero-day уязвимость?", correct: "Уязвимость без патча",
+    wrong: ["Атака в полночь", "Нулевой трафик", "Пустой лог"] },
+  { q: "Что означает TTP?", correct: "Tactics, Techniques, Procedures",
+    wrong: ["Total Threat Protection", "Time To Patch", "Trusted Third Party"] },
+  { q: "Что такое Diamond Model?", correct: "Модель анализа кибератак",
+    wrong: ["Алгоритм шифрования", "Тип firewall", "Протокол маршрутизации"] },
+  { q: "Что такое APT-группа?", correct: "Advanced Persistent Threat",
+    wrong: ["Automatic Protection Tool", "Anti-Phishing Technology", "Advanced Password Tracker"] },
+  { q: "Для чего используется YARA?", correct: "Для детектирования malware",
+    wrong: ["Для шифрования дисков", "Для управления паролями", "Для балансировки нагрузки"] },
+  { q: "Что такое Digital Forensics?", correct: "Цифровая криминалистика",
+    wrong: ["Электронная подпись", "Программный firewall", "Облачная аналитика"] },
+  { q: "Кто такие Red Team?", correct: "Специалисты по атакам (пентест)",
+    wrong: ["Специалисты по защите", "Разработчики антивирусов", "Аналитики SOC"] },
+];
+
+const QUESTIONS_HARD = [
+  { q: "Какой стандарт используется для обмена индикаторами угроз?", correct: "STIX/TAXII",
+    wrong: ["OAuth 2.0", "SNMP", "SMTP"] },
+  { q: "Что такое Kerberoasting?", correct: "Атака на Kerberos-тикеты",
+    wrong: ["Шифрование диска", "Резервное копирование", "Балансировка нагрузки"] },
+  { q: "Что такое Golden Ticket в контексте Active Directory?", correct: "Поддельный TGT для домена",
+    wrong: ["Золотой сертификат", "VIP-доступ", "Лицензия Windows"] },
+  { q: "Какой протокол используется для защищённого обмена ключами?", correct: "Diffie-Hellman",
+    wrong: ["HTTP", "FTP", "Telnet"] },
+  { q: "Что такое Pass-the-Hash?", correct: "Атака с использованием NTLM-хеша",
+    wrong: ["Передача пароля", "Хеширование трафика", "Смена пароля"] },
+  { q: "Что такое DLL Hijacking?", correct: "Подмена библиотеки DLL",
+    wrong: ["Сжатие DLL", "Шифрование DLL", "Резервная копия DLL"] },
+  { q: "Что такое SQL-инъекция?", correct: "Внедрение SQL-кода в запрос",
+    wrong: ["Ускорение БД", "Шифрование таблиц", "Резервное копирование"] },
+  { q: "Что такое XSS?", correct: "Межсайтовый скриптинг",
+    wrong: ["Обмен ключами", "Сжатие данных", "Маршрутизация"] },
+  { q: "Что такое CSRF?", correct: "Межсайтовая подделка запроса",
+    wrong: ["Централизованная система", "Шифрование файлов", "Сетевой протокол"] },
+  { q: "Что такое SSRF?", correct: "Подделка запросов на стороне сервера",
+    wrong: ["Безопасный обмен", "Сжатие потока", "Синхронизация файлов"] },
+];
+
+const LEVELS = {
+  1: { name: 'Лёгкий', questions: QUESTIONS_EASY,   fillRate: 0.45, qInterval: 18 },
+  2: { name: 'Средний', questions: QUESTIONS_MEDIUM, fillRate: 0.6,  qInterval: 15 },
+  3: { name: 'Сложный', questions: QUESTIONS_HARD,   fillRate: 0.8,  qInterval: 12 },
+};
+
+// ============================================================
+// CANVAS + DOM
+// ============================================================
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+const W = canvas.width, H = canvas.height;
+
+const hackCover = document.getElementById('hack-cover');
+const hackPct   = document.getElementById('hack-pct');
+const hackLevel = document.getElementById('hack-level');
+const hackQCount = document.getElementById('hack-qcount');
+const hackTimer = document.getElementById('hack-timer');
+const questionEl = document.getElementById('question');
+const answersEl = document.getElementById('answers');
+const statusEl = document.getElementById('status');
+const overlay = document.getElementById('overlay');
+const ovSub = document.getElementById('ov-sub');
+const ovTitle = document.getElementById('ov-title');
+const ovStats = document.getElementById('ov-stats');
+const ovBest = document.getElementById('ov-best');
+const ovBtn = document.getElementById('ov-btn');
+const ovResultsBtn = document.getElementById('ov-results-btn');
+
+const nickScreen = document.getElementById('nick-screen');
+const nickInput = document.getElementById('nick-input');
+const nickBtn = document.getElementById('nick-btn');
+const menuScreen = document.getElementById('menu-screen');
+const welcomeText = document.getElementById('welcome-text');
+const hud = document.getElementById('hud');
+
+const resultsScreen = document.getElementById('results-screen');
+const resultsTbody = document.getElementById('results-tbody');
+const resultsBack = document.getElementById('results-back');
+const showResultsBtn = document.getElementById('show-results-btn');
+
+// ============================================================
+// СОСТОЯНИЕ
+// ============================================================
+let hackProgress, gameOver, lastTime, questionTimer, currentQuestion, answering;
+let elapsedTime, correctCount, wrongCount, questionPool;
+let monitors, particles;
+let playerNick = '';
+let currentLevel = 1;
+let totalQuestions = 10;
+let resultsBackTarget = 'menu';
+
+// ============================================================
+// УТИЛИТЫ
+// ============================================================
+function shuffle(a) {
+  a = a.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function rr(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y);
+  ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+  ctx.lineTo(x + w, y + h - r);
+  ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+  ctx.lineTo(x + r, y + h);
+  ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+  ctx.lineTo(x, y + r);
+  ctx.quadraticCurveTo(x, y, x + r, y);
+  ctx.closePath();
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+// ============================================================
+// ЛОГИРОВАНИЕ РЕЗУЛЬТАТОВ
+// ============================================================
+const RESULTS_KEY = 'hacker_quiz_results';
+
+function loadResults() {
+  try { return JSON.parse(localStorage.getItem(RESULTS_KEY) || '{}'); }
+  catch { return {}; }
+}
+
+function saveResult(nick, score, time) {
+  if (!nick) return;
+  const results = loadResults();
+  const key = nick.toLowerCase();
+  if (!results[key]) {
+    results[key] = { nick: nick, scores: [] };
+  }
+  results[key].scores.push({
+    score: score,
+    time: parseFloat(time.toFixed(1)),
+    level: currentLevel,
+    date: new Date().toISOString()
+  });
+  if (results[key].scores.length > 10) {
+    results[key].scores = results[key].scores.slice(-10);
+  }
+  try { localStorage.setItem(RESULTS_KEY, JSON.stringify(results)); } catch {}
+}
+
+function getBestForPlayer(nick) {
+  const results = loadResults();
+  const key = nick.toLowerCase();
+  if (!results[key] || !results[key].scores.length) return null;
+  return results[key].scores.reduce((best, s) =>
+    (s.score > best.score || (s.score === best.score && s.time < best.time)) ? s : best
+  );
+}
+
+function getLastForPlayer(nick) {
+  const results = loadResults();
+  const key = nick.toLowerCase();
+  if (!results[key] || !results[key].scores.length) return null;
+  return results[key].scores[results[key].scores.length - 1];
+}
+
+// ============================================================
+// ПРОГРЕССИВНАЯ СЛОЖНОСТЬ
+// ============================================================
+function getFillRate() {
+  const base = LEVELS[currentLevel].fillRate;
+  return Math.min(MAX_FILL_RATE, base + elapsedTime * FILL_RATE_GROWTH);
+}
+function getQuestionInterval() {
+  const base = LEVELS[currentLevel].qInterval;
+  return Math.max(MIN_Q_INTERVAL, base - elapsedTime * Q_INTERVAL_DROP);
+}
+function getLevel() {
+  return currentLevel;
+}
+function getGlitchIntensity() {
+  return Math.max(0, Math.min(1, (hackProgress - GLITCH_START) / (100 - GLITCH_START)));
+}
+
+// ============================================================
+// ЗВУК
+// ============================================================
+let audioCtx = null, ambientRefs = null, musicRefs = null;
+
+function ensureAudio() {
+  if (audioCtx) {
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+    if (!ambientRefs) startAmbient();
+    if (!musicRefs) startMusic();
+    return;
+  }
+  try {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    startAmbient();
+    startMusic();
+  } catch (e) { console.warn('Audio init failed', e); }
+}
+
+function startAmbient() {
+  if (!audioCtx || ambientRefs) return;
+  const master = audioCtx.createGain();
+  master.gain.value = 0.015;
+
+  const hum1 = audioCtx.createOscillator();
+  hum1.type = 'sine'; hum1.frequency.value = 55;
+  const g1 = audioCtx.createGain(); g1.gain.value = 0.7;
+
+  const hum2 = audioCtx.createOscillator();
+  hum2.type = 'sine'; hum2.frequency.value = 82.5;
+  const g2 = audioCtx.createGain(); g2.gain.value = 0.3;
+
+  const filter = audioCtx.createBiquadFilter();
+  filter.type = 'lowpass'; filter.frequency.value = 200;
+
+  hum1.connect(g1).connect(filter);
+  hum2.connect(g2).connect(filter);
+  filter.connect(master).connect(audioCtx.destination);
+  hum1.start(); hum2.start();
+  ambientRefs = { hum1, hum2, master };
+}
+function stopAmbient() {
+  if (!ambientRefs || !audioCtx) return;
+  const t = audioCtx.currentTime;
+  ambientRefs.master.gain.setTargetAtTime(0, t, 0.3);
+  const refs = ambientRefs; ambientRefs = null;
+  setTimeout(() => { try { refs.hum1.stop(); refs.hum2.stop(); } catch(e){} }, 900);
+}
+
+function startMusic() {
+  if (!audioCtx || musicRefs) return;
+
+  const musicGain = audioCtx.createGain();
+  musicGain.gain.value = 0.16;
+
+  const comp = audioCtx.createDynamicsCompressor();
+  comp.threshold.value = -22;
+  comp.knee.value = 6;
+  comp.ratio.value = 10;
+  comp.attack.value = 0.005;
+  comp.release.value = 0.3;
+
+  const dullFilter = audioCtx.createBiquadFilter();
+  dullFilter.type = 'lowpass';
+  dullFilter.frequency.value = 3200;
+  dullFilter.Q.value = 0.7;
+
+  musicGain.connect(comp).connect(dullFilter).connect(audioCtx.destination);
+
+  const noiseBuf = audioCtx.createBuffer(1, audioCtx.sampleRate * 2, audioCtx.sampleRate);
+  const nd = noiseBuf.getChannelData(0);
+  for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+
+  const F1 = 43.65, Ab1 = 51.91, C2 = 65.41, Eb2 = 77.78;
+  const F2 = 87.31, Ab2 = 103.83, C3 = 130.81;
+  const F3 = 174.61, Ab3 = 207.65, C4 = 261.63;
+
+  const droneOsc1 = audioCtx.createOscillator();
+  droneOsc1.type = 'sawtooth';
+  droneOsc1.frequency.value = F1;
+
+  const droneOsc2 = audioCtx.createOscillator();
+  droneOsc2.type = 'sawtooth';
+  droneOsc2.frequency.value = F1;
+  droneOsc2.detune.value = -18;
+
+  const droneSub = audioCtx.createOscillator();
+  droneSub.type = 'sine';
+  droneSub.frequency.value = F1 * 0.5;
+
+  const droneFilter = audioCtx.createBiquadFilter();
+  droneFilter.type = 'lowpass';
+  droneFilter.frequency.value = 300;
+  droneFilter.Q.value = 3;
+
+  const droneGain = audioCtx.createGain();
+  droneGain.gain.value = 0.18;
+
+  const droneLFO = audioCtx.createOscillator();
+  droneLFO.type = 'sine';
+  droneLFO.frequency.value = 0.07;
+  const droneLFOGain = audioCtx.createGain();
+  droneLFOGain.gain.value = 0.06;
+  droneLFO.connect(droneLFOGain).connect(droneGain.gain);
+  droneLFO.start();
+
+  droneOsc1.connect(droneFilter);
+  droneOsc2.connect(droneFilter);
+  droneSub.connect(droneFilter);
+  droneFilter.connect(droneGain).connect(musicGain);
+
+  droneOsc1.start();
+  droneOsc2.start();
+  droneSub.start();
+
+  const drone2Osc = audioCtx.createOscillator();
+  drone2Osc.type = 'triangle';
+  drone2Osc.frequency.value = Ab1;
+  const drone2Gain = audioCtx.createGain();
+  drone2Gain.gain.value = 0;
+  drone2Osc.connect(drone2Gain).connect(musicGain);
+  drone2Osc.start();
+
+  const kickPat      = [1,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0];
+  const kickPat2     = [0,0,0,0, 1,0,0,0, 0,0,0,0, 0,0,1,0];
+  const snarePat     = [0,0,0,0, 0,0,0,0, 1,0,0,0, 0,0,0,0];
+  const glitchPat    = [0,0,0,1, 0,1,0,0, 0,0,1,0, 1,0,0,0];
+  const bassPat      = [F1,0, 0,0, 0,0, F1,0, Ab1,0, 0,0, 0,0, C2,0];
+  const droneMelody  = [0,0, 0,0, 0,0, 0,0, 0,0, C3,0, 0,0, 0,0];
+  const bellPat      = [0,0, 0,0, 0,0, 0,0, 0,0, 0,0, 0,0, F3,0];
+
+  const bpm = 96;
+  const stepDur = 60 / bpm / 4;
+  const stepsPerBar = 16;
+  const barsPerLoop = 8;
+
+  let nextTime = audioCtx.currentTime + 0.1;
+  let step = 0;
+
+  function playKick(t, hard = false) {
+    const osc = audioCtx.createOscillator();
+    const g = audioCtx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(hard ? 140 : 100, t);
+    osc.frequency.exponentialRampToValueAtTime(28, t + 0.18);
+    g.gain.setValueAtTime(hard ? 1.0 : 0.85, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.5);
+    osc.connect(g).connect(musicGain);
+    osc.start(t);
+    osc.stop(t + 0.55);
+
+    const sub = audioCtx.createOscillator();
+    const sg = audioCtx.createGain();
+    sub.type = 'sine';
+    sub.frequency.value = 38;
+    sg.gain.setValueAtTime(0, t);
+    sg.gain.linearRampToValueAtTime(0.55, t + 0.01);
+    sg.gain.exponentialRampToValueAtTime(0.001, t + 0.4);
+    sub.connect(sg).connect(musicGain);
+    sub.start(t);
+    sub.stop(t + 0.42);
+  }
+
+  function playSnare(t) {
+    const src = audioCtx.createBufferSource();
+    src.buffer = noiseBuf;
+    const filt = audioCtx.createBiquadFilter();
+    filt.type = 'bandpass';
+    filt.frequency.value = 900;
+    filt.Q.value = 0.9;
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0.35, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.35);
+    src.connect(filt).connect(g).connect(musicGain);
+    src.start(t);
+    src.stop(t + 0.4);
+
+    const osc = audioCtx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.value = 180;
+    const og = audioCtx.createGain();
+    og.gain.setValueAtTime(0.25, t);
+    og.gain.exponentialRampToValueAtTime(0.001, t + 0.2);
+    osc.connect(og).connect(musicGain);
+    osc.start(t);
+    osc.stop(t + 0.25);
+  }
+
+  function playGlitchHat(t) {
+    const src = audioCtx.createBufferSource();
+    src.buffer = noiseBuf;
+    const filt = audioCtx.createBiquadFilter();
+    filt.type = 'highpass';
+    filt.frequency.value = 6000 + Math.random() * 3000;
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0.045 + Math.random() * 0.03, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.03 + Math.random() * 0.04);
+    src.connect(filt).connect(g).connect(musicGain);
+    src.start(t);
+    src.stop(t + 0.1);
+  }
+
+  function playBass(freq, t) {
+    if (!freq) return;
+    const osc = audioCtx.createOscillator();
+    osc.type = 'sawtooth';
+    osc.frequency.value = freq;
+
+    const sub = audioCtx.createOscillator();
+    sub.type = 'sine';
+    sub.frequency.value = freq * 0.5;
+    const subG = audioCtx.createGain();
+    subG.gain.value = 0.75;
+
+    const filt = audioCtx.createBiquadFilter();
+    filt.type = 'lowpass';
+    filt.frequency.setValueAtTime(180, t);
+    filt.frequency.exponentialRampToValueAtTime(90, t + 0.5);
+    filt.Q.value = 10;
+
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.5, t + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.55);
+
+    osc.connect(filt);
+    sub.connect(subG).connect(filt);
+    filt.connect(g).connect(musicGain);
+    osc.start(t);
+    sub.start(t);
+    osc.stop(t + 0.58);
+    sub.stop(t + 0.58);
+  }
+
+  function playBell(freq, t) {
+    if (!freq) return;
+    const osc = audioCtx.createOscillator();
+    osc.type = 'triangle';
+    osc.frequency.value = freq;
+    const osc2 = audioCtx.createOscillator();
+    osc2.type = 'sine';
+    osc2.frequency.value = freq * 2.01;
+
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.08, t + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 1.2);
+
+    const g2 = audioCtx.createGain();
+    g2.gain.setValueAtTime(0, t);
+    g2.gain.linearRampToValueAtTime(0.03, t + 0.01);
+    g2.gain.exponentialRampToValueAtTime(0.001, t + 0.8);
+
+    osc.connect(g).connect(musicGain);
+    osc2.connect(g2).connect(musicGain);
+    osc.start(t);
+    osc2.start(t);
+    osc.stop(t + 1.25);
+    osc2.stop(t + 0.85);
+  }
+
+  function playRumble(t, dur) {
+    const src = audioCtx.createBufferSource();
+    src.buffer = noiseBuf;
+    const filt = audioCtx.createBiquadFilter();
+    filt.type = 'lowpass';
+    filt.frequency.setValueAtTime(200, t);
+    filt.frequency.exponentialRampToValueAtTime(60, t + dur);
+    filt.Q.value = 4;
+    const g = audioCtx.createGain();
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(0.14, t + dur * 0.3);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    src.connect(filt).connect(g).connect(musicGain);
+    src.start(t);
+    src.stop(t + dur + 0.1);
+  }
+
+  function scheduler() {
+    if (!musicRefs) return;
+    while (nextTime < audioCtx.currentTime + 0.15) {
+      const s = step % stepsPerBar;
+      const bar = Math.floor(step / stepsPerBar) % barsPerLoop;
+
+      if (bar === 2 && s === 0) {
+        drone2Gain.gain.setTargetAtTime(0.10, nextTime, 1.5);
+      }
+      if (bar === 6 && s === 0) {
+        drone2Gain.gain.setTargetAtTime(0.22, nextTime, 2.0);
+      }
+      if (bar === 0 && s === 0 && step > 0) {
+        drone2Gain.gain.setTargetAtTime(0, nextTime, 1.5);
+      }
+
+      const useKick2 = bar >= 4 && bar !== 6;
+      if (bar !== 6) {
+        if (kickPat[s]) playKick(nextTime, bar === 7);
+        if (useKick2 && kickPat2[s]) playKick(nextTime);
+      }
+      if (snarePat[s] && bar >= 2) playSnare(nextTime);
+      if (glitchPat[s] && bar >= 3 && bar !== 6) {
+        if (Math.random() < 0.75) playGlitchHat(nextTime);
+      }
+
+      if (bar >= 2 && bar !== 6 && bassPat[s]) playBass(bassPat[s], nextTime);
+      if (bar === 4 && droneMelody[s]) playBell(droneMelody[s], nextTime);
+      if (bar === 7 && bellPat[s]) playBell(bellPat[s], nextTime);
+
+      if (s === 0) {
+        if (bar === 1 || bar === 3 || bar === 5) playRumble(nextTime, 2.5);
+        if (bar === 6) playRumble(nextTime, 5.0);
+      }
+
+      nextTime += stepDur;
+      step++;
+    }
+  }
+
+  const interval = setInterval(scheduler, 25);
+  musicRefs = { musicGain, interval, droneOsc1, droneOsc2, droneSub, drone2Osc, droneLFO };
+}
+
+function stopMusic() {
+  if (!musicRefs || !audioCtx) return;
+  clearInterval(musicRefs.interval);
+  musicRefs.musicGain.gain.setTargetAtTime(0, audioCtx.currentTime, 0.5);
+  const refs = musicRefs;
+  musicRefs = null;
+  setTimeout(() => {
+    try {
+      refs.droneOsc1.stop();
+      refs.droneOsc2.stop();
+      refs.droneSub.stop();
+      refs.drone2Osc.stop();
+      refs.droneLFO.stop();
+    } catch(e) {}
+  }, 1200);
+}
+
+function playTone(freq, dur, type = 'sine', vol = 0.1, delay = 0, slideTo = null) {
+  if (!audioCtx) return;
+  const t0 = audioCtx.currentTime + delay;
+  const osc = audioCtx.createOscillator();
+  const g = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.setValueAtTime(freq, t0);
+  if (slideTo) osc.frequency.exponentialRampToValueAtTime(slideTo, t0 + dur);
+  g.gain.setValueAtTime(0, t0);
+  g.gain.linearRampToValueAtTime(vol, t0 + 0.02);
+  g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+  osc.connect(g).connect(audioCtx.destination);
+  osc.start(t0);
+  osc.stop(t0 + dur + 0.05);
+}
+
+function playCorrect() {
+  playTone(330, 0.15, 'triangle', 0.10, 0);
+  playTone(494, 0.15, 'triangle', 0.11, 0.10);
+  playTone(660, 0.30, 'triangle', 0.12, 0.20);
+}
+function playWrong() {
+  playTone(880, 0.18, 'sine', 0.11, 0, 440);
+  playTone(660, 0.28, 'square', 0.06, 0.12, 220);
+}
+function playBreach() {
+  playTone(110, 1.2, 'sawtooth', 0.14, 0, 55);
+  playTone(220, 1.2, 'square', 0.08, 0, 110);
+  playTone(880, 0.4, 'square', 0.10, 0.1, 1760);
+}
+function playVictory() {
+  playTone(523, 0.35, 'triangle', 0.13, 0);
+  playTone(659, 0.35, 'triangle', 0.13, 0.16);
+  playTone(784, 0.35, 'triangle', 0.13, 0.32);
+  playTone(1047, 0.9, 'triangle', 0.15, 0.50);
+  playTone(784, 0.5, 'sine', 0.08, 0.75);
+  playTone(1047, 1.2, 'sine', 0.10, 0.90);
+}
+
+['click','touchstart','keydown'].forEach(ev =>
+  document.addEventListener(ev, ensureAudio, { once: true })
+);
+
+// ============================================================
+// ЧАСТИЦЫ
+// ============================================================
+function spawnParticle(x, y, vx, vy, life, color, size, grow = 0) {
+  particles.push({ x, y, vx, vy, life, maxLife: life, color, size, grow });
+}
+function spawnGreenBurst(x, y, count = 18) {
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2, s = 60 + Math.random() * 160;
+    spawnParticle(x, y, Math.cos(a)*s, Math.sin(a)*s,
+      0.6 + Math.random()*0.5,
+      ['#22c55e','#4ade80','#86efac','#16a34a'][Math.floor(Math.random()*4)],
+      2 + Math.random()*2);
+  }
+}
+function spawnRedBurst(x, y, count = 22) {
+  for (let i = 0; i < count; i++) {
+    const a = Math.random() * Math.PI * 2, s = 80 + Math.random() * 200;
+    spawnParticle(x, y, Math.cos(a)*s, Math.sin(a)*s,
+      0.7 + Math.random()*0.5,
+      ['#ef4444','#f87171','#dc2626','#fbbf24'][Math.floor(Math.random()*4)],
+      2 + Math.random()*3);
+  }
+}
+function spawnVictoryConfetti() {
+  for (let i = 0; i < 90; i++) {
+    const a = Math.random() * Math.PI * 2, s = 100 + Math.random() * 300;
+    spawnParticle(
+      W / 2, H / 2,
+      Math.cos(a) * s, Math.sin(a) * s - 80,
+      1.4 + Math.random() * 1.0,
+      ['#22c55e','#4ade80','#86efac','#facc15','#38bdf8','#a855f7','#f472b6'][Math.floor(Math.random()*7)],
+      2 + Math.random() * 3.5
+    );
+  }
+}
+function updateParticles(dt) {
+  for (let i = particles.length - 1; i >= 0; i--) {
+    const p = particles[i];
+    p.x += p.vx * dt; p.y += p.vy * dt;
+    p.vx *= 0.95; p.vy *= 0.95;
+    p.size += p.grow * dt;
+    p.life -= dt;
+    if (p.life <= 0) particles.splice(i, 1);
+  }
+}
+function drawParticles() {
+  for (const p of particles) {
+    const alpha = Math.max(0, p.life / p.maxLife);
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = p.color;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, Math.max(0.5, p.size), 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+}
+
+// ============================================================
+// МОНИТОРЫ
+// ============================================================
+const CODE_CHARS = 'アイウエオカキクケコサシスセソタチツテトナニヌネノ0123456789ABCDEF<>{}[]/*-+=%'.split('');
+function randChar() { return CODE_CHARS[Math.floor(Math.random() * CODE_CHARS.length)]; }
+
+function createMonitor(x, y, w, h) {
+  const charW = 11, charH = 14;
+  const m = { x, y, w, h, charW, charH, cols: [], errorTimer: 0, lockAnim: null };
+  const colsCount = Math.floor((w - 16) / charW);
+  for (let i = 0; i < colsCount; i++) {
+    m.cols.push({
+      x: 8 + i * charW,
+      y: Math.random() * -h - 40,
+      speed: 40 + Math.random() * 100,
+      chars: Array.from({ length: 24 }, randChar),
+    });
+  }
+  return m;
+}
+function updateMonitor(m, dt) {
+  for (const c of m.cols) {
+    c.y += c.speed * dt;
+    if (c.y > m.h + 24 * m.charH) {
+      c.y = -24 * m.charH;
+      c.speed = 40 + Math.random() * 100;
+      for (let i = 0; i < c.chars.length; i++) c.chars[i] = randChar();
+    }
+  }
+  if (m.errorTimer > 0) m.errorTimer -= dt;
+  if (m.lockAnim) {
+    m.lockAnim.t += dt;
+    if (m.lockAnim.t > m.lockAnim.dur) m.lockAnim = null;
+  }
+}
+function drawMonitorStand(m) {
+  const cx = m.x + m.w / 2;
+  const frameBottom = m.y + m.h + 10;
+  const poleBottom = frameBottom + 20;
+  const poleW = 10;
+
+  ctx.fillStyle = '#050508';
+  ctx.beginPath();
+  ctx.ellipse(cx, poleBottom + 2, 42, 7, 0, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(70, 60, 90, 0.5)';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.ellipse(cx, poleBottom + 2, 42, 7, 0, Math.PI, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.fillStyle = '#0a0a10';
+  ctx.fillRect(cx - poleW / 2, frameBottom, poleW, poleBottom - frameBottom);
+
+  ctx.fillStyle = 'rgba(80, 70, 100, 0.4)';
+  ctx.fillRect(cx - poleW / 2 + 1, frameBottom, 2, poleBottom - frameBottom);
+}
+function drawMonitor(m) {
+  const outerGlow = ctx.createRadialGradient(
+    m.x + m.w/2, m.y + m.h/2, 0,
+    m.x + m.w/2, m.y + m.h/2, m.w * 0.9
+  );
+  outerGlow.addColorStop(0, 'rgba(168, 85, 247, 0.18)');
+  outerGlow.addColorStop(1, 'rgba(168, 85, 247, 0)');
+  ctx.fillStyle = outerGlow;
+  ctx.fillRect(m.x - 100, m.y - 100, m.w + 200, m.h + 200);
+
+  ctx.fillStyle = '#0a0a10';
+  ctx.fillRect(m.x - 10, m.y - 10, m.w + 20, m.h + 20);
+  ctx.strokeStyle = '#1e1e2a';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(m.x - 10, m.y - 10, m.w + 20, m.h + 20);
+
+  ctx.fillStyle = '#0a0410';
+  ctx.fillRect(m.x, m.y, m.w, m.h);
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(m.x, m.y, m.w, m.h);
+  ctx.clip();
+
+  ctx.font = `bold ${m.charH - 3}px "Courier New", monospace`;
+  ctx.textBaseline = 'top';
+  for (const c of m.cols) {
+    for (let j = 0; j < c.chars.length; j++) {
+      const cy = m.y + c.y - j * m.charH;
+      if (cy < m.y - m.charH || cy > m.y + m.h) continue;
+      let alpha;
+      if (j === 0) alpha = 1;
+      else if (j < 3) alpha = 0.85;
+      else alpha = Math.max(0.08, 0.85 - j * 0.05);
+
+      if (j === 0) ctx.fillStyle = `rgba(240, 220, 255, ${alpha})`;
+      else if (j < 3) ctx.fillStyle = `rgba(200, 150, 255, ${alpha})`;
+      else ctx.fillStyle = `rgba(168, 85, 247, ${alpha})`;
+
+      ctx.fillText(c.chars[j], m.x + c.x, cy);
+    }
+  }
+
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.18)';
+  for (let y = 0; y < m.h; y += 4) ctx.fillRect(m.x, m.y + y, m.w, 2);
+
+  if (m.errorTimer > 0) drawErrorEffect(m);
+  if (m.lockAnim) drawLockAnim(m);
+
+  ctx.restore();
+}
+function drawErrorEffect(m) {
+  const flicker = 0.15 + Math.random() * 0.2;
+  ctx.fillStyle = `rgba(220, 38, 38, ${flicker})`;
+  ctx.fillRect(m.x, m.y, m.w, m.h);
+
+  for (let i = 0; i < 7; i++) {
+    const gy = m.y + Math.random() * m.h;
+    const gh = 2 + Math.random() * 8;
+    ctx.fillStyle = `rgba(255, 60, 60, ${0.35 + Math.random() * 0.5})`;
+    ctx.fillRect(m.x, gy, m.w, gh);
+  }
+
+  ctx.save();
+  ctx.globalAlpha = 0.12;
+  ctx.fillStyle = '#ff3030';
+  for (let i = -m.h; i < m.w; i += 22) ctx.fillRect(m.x + i, m.y, 8, m.h);
+  ctx.restore();
+
+  ctx.save();
+  ctx.font = 'bold 30px "Courier New", monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const cx = m.x + m.w / 2;
+  const cy = m.y + m.h / 2;
+  const jx = (Math.random() - 0.5) * 6;
+  const jy = (Math.random() - 0.5) * 4;
+
+  ctx.fillStyle = 'rgba(0,0,0,0.7)';
+  ctx.fillText('ERROR', cx + jx + 2, cy + jy + 2);
+  ctx.fillStyle = `rgba(255, 80, 80, ${0.85 + Math.random() * 0.15})`;
+  ctx.fillText('ERROR', cx + jx, cy + jy);
+
+  ctx.font = 'bold 11px "Courier New", monospace';
+  ctx.fillStyle = `rgba(255, 160, 160, ${0.6 + Math.random() * 0.4})`;
+  ctx.fillText('EXPLOIT FAILED', cx, cy + 26);
+  ctx.restore();
+}
+function drawLockAnim(m) {
+  const { t, dur } = m.lockAnim;
+  const p = Math.min(1, t / dur);
+  const cx = m.x + m.w / 2;
+  const cy = m.y + m.h / 2;
+  const bodyW = 60, bodyH = 50;
+  const bodyX = cx - bodyW / 2;
+  const bodyY = cy - bodyH / 2 + 12;
+  const shackleR = 22;
+
+  ctx.fillStyle = 'rgba(20, 0, 40, 0.55)';
+  ctx.fillRect(m.x, m.y, m.w, m.h);
+
+  if (p > 0.55 && p < 0.85) {
+    ctx.fillStyle = `rgba(168, 85, 247, ${0.4 * (1 - (p - 0.55) / 0.3)})`;
+    ctx.fillRect(m.x, m.y, m.w, m.h);
+  }
+
+  const openP = Math.min(1, p * 1.4);
+  const shiftUp = openP * 18;
+  const tilt = openP * 0.7;
+
+  ctx.save();
+  ctx.translate(bodyX + bodyW / 2, bodyY);
+  ctx.rotate(-tilt);
+  ctx.translate(0, -shiftUp);
+  ctx.strokeStyle = '#a855f7';
+  ctx.lineWidth = 6;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.arc(0, 0, shackleR, Math.PI, 0, false);
+  ctx.stroke();
+  ctx.strokeStyle = 'rgba(220, 180, 255, 0.7)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.arc(0, 0, shackleR, Math.PI + 0.4, Math.PI + 1.2, false);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.fillStyle = 'rgba(15, 5, 30, 0.95)';
+  ctx.strokeStyle = '#a855f7';
+  ctx.lineWidth = 4;
+  rr(bodyX, bodyY, bodyW, bodyH, 8);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = '#a855f7';
+  ctx.beginPath();
+  ctx.arc(cx, bodyY + 18, 4.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillRect(cx - 2, bodyY + 18, 4, 13);
+
+  if (p > 0.4) {
+    const alpha = Math.min(1, (p - 0.4) / 0.3);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.font = 'bold 14px "Courier New", monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#a855f7';
+    ctx.shadowColor = '#a855f7';
+    ctx.shadowBlur = 12;
+    ctx.fillText('UNLOCKED', cx, bodyY - 50);
+    ctx.restore();
+  }
+}
+
+// ============================================================
+// КЛАВИАТУРА НА СТОЛЕ
+// ============================================================
+function drawDeskKeyboard() {
+  const deskY = 178;
+  const deskH = 42;
+  ctx.fillStyle = '#06060a';
+  ctx.fillRect(0, deskY, W, deskH);
+
+  ctx.fillStyle = 'rgba(80, 70, 100, 0.35)';
+  ctx.fillRect(0, deskY, W, 2);
+
+  const shadow = ctx.createLinearGradient(0, deskY + deskH, 0, deskY + deskH + 25);
+  shadow.addColorStop(0, 'rgba(0,0,0,0.7)');
+  shadow.addColorStop(1, 'rgba(0,0,0,0)');
+  ctx.fillStyle = shadow;
+  ctx.fillRect(0, deskY + deskH, W, 25);
+
+  const kbW = 520;
+  const kbH = 32;
+  const kbX = (W - kbW) / 2;
+  const kbY = deskY + 6;
+
+  ctx.fillStyle = '#080810';
+  rr(kbX, kbY, kbW, kbH, 4);
+  ctx.fill();
+
+  ctx.strokeStyle = 'rgba(168, 85, 247, 0.25)';
+  ctx.lineWidth = 1;
+  ctx.stroke();
+
+  const keyW = 14, keyH = 11, gapX = 2, gapY = 2;
+  const cols = Math.floor((kbW - 8) / (keyW + gapX));
+  const rows = 2;
+  const pulse = 0.5 + Math.sin(elapsedTime * 6) * 0.15;
+
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      const on = Math.random() < 0.07;
+      if (on) {
+        ctx.fillStyle = `rgba(168, 85, 247, ${pulse})`;
+        ctx.shadowColor = '#a855f7';
+        ctx.shadowBlur = 8;
+      } else {
+        ctx.fillStyle = 'rgba(28, 22, 35, 0.95)';
+        ctx.shadowBlur = 0;
+      }
+      ctx.fillRect(
+        kbX + 4 + c * (keyW + gapX),
+        kbY + 3 + r * (keyH + gapY),
+        keyW, keyH
+      );
+    }
+  }
+  ctx.shadowBlur = 0;
+}
+
+// ============================================================
+// ХАКЕР
+// ============================================================
+function drawHacker() {
+  const cx = W / 2;
+  const bob = Math.sin(elapsedTime * 2.2) * 1.8;
+  const breath = Math.sin(elapsedTime * 1.4) * 1.0;
+
+  const rimGlow = ctx.createRadialGradient(cx, 360, 20, cx, 360, 360);
+  rimGlow.addColorStop(0, 'rgba(168, 85, 247, 0.22)');
+  rimGlow.addColorStop(0.5, 'rgba(168, 85, 247, 0.08)');
+  rimGlow.addColorStop(1, 'rgba(168, 85, 247, 0)');
+  ctx.fillStyle = rimGlow;
+  ctx.fillRect(0, 200, W, H);
+
+  ctx.save();
+  ctx.translate(0, bob);
+
+  ctx.save();
+  ctx.fillStyle = '#040408';
+  ctx.beginPath();
+  ctx.moveTo(cx - 145, 400);
+  ctx.quadraticCurveTo(cx - 165, 450, cx - 158, H);
+  ctx.lineTo(cx + 158, H);
+  ctx.quadraticCurveTo(cx + 165, 450, cx + 145, 400);
+  ctx.quadraticCurveTo(cx, 350, cx - 145, 400);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.save();
+  ctx.beginPath();
+  ctx.moveTo(cx - 145, 400);
+  ctx.quadraticCurveTo(cx - 165, 450, cx - 158, H);
+  ctx.lineTo(cx + 158, H);
+  ctx.quadraticCurveTo(cx + 165, 450, cx + 145, 400);
+  ctx.quadraticCurveTo(cx, 350, cx - 145, 400);
+  ctx.closePath();
+  ctx.clip();
+
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.65)';
+  for (let y = 370; y < H; y += 6) {
+    const dx = Math.sin(y * 0.05) * 1.5;
+    for (let x = cx - 160; x < cx + 160; x += 6) {
+      ctx.fillRect(x + dx, y, 1.8, 1.8);
+    }
+  }
+
+  ctx.strokeStyle = 'rgba(30, 20, 40, 0.6)';
+  ctx.lineWidth = 2;
+  for (let i = -4; i <= 4; i++) {
+    ctx.beginPath();
+    ctx.moveTo(cx + i * 28, 390);
+    ctx.lineTo(cx + i * 30, H);
+    ctx.stroke();
+  }
+  ctx.restore();
+
+  ctx.save();
+  ctx.shadowColor = 'rgba(168, 85, 247, 0.5)';
+  ctx.shadowBlur = 8;
+  ctx.strokeStyle = 'rgba(168, 85, 247, 0.18)';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(cx - 145, 400);
+  ctx.quadraticCurveTo(cx - 165, 450, cx - 158, H);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx + 145, 400);
+  ctx.quadraticCurveTo(cx + 165, 450, cx + 158, H);
+  ctx.stroke();
+  ctx.restore();
+  ctx.restore();
+
+  const bodyGrad = ctx.createLinearGradient(cx, 380, cx, H);
+  bodyGrad.addColorStop(0, '#0a0a14');
+  bodyGrad.addColorStop(0.6, '#050510');
+  bodyGrad.addColorStop(1, '#020208');
+
+  ctx.fillStyle = bodyGrad;
+  ctx.beginPath();
+  ctx.moveTo(cx - 85, 395 + breath);
+  ctx.bezierCurveTo(cx - 130, 405 + breath, cx - 205, 425 + breath, cx - 245, 495);
+  ctx.quadraticCurveTo(cx - 258, 512, cx - 260, H);
+  ctx.lineTo(cx + 260, H);
+  ctx.quadraticCurveTo(cx + 258, 512, cx + 245, 495);
+  ctx.bezierCurveTo(cx + 205, 425 + breath, cx + 130, 405 + breath, cx + 85, 395 + breath);
+  ctx.quadraticCurveTo(cx, 418, cx - 85, 395 + breath);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.save();
+  ctx.strokeStyle = 'rgba(0, 0, 0, 0.55)';
+  ctx.lineWidth = 2;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(cx, 425);
+  ctx.quadraticCurveTo(cx - 3, 465, cx - 1, 510);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx - 60, 425);
+  ctx.quadraticCurveTo(cx - 78, 460, cx - 88, 510);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx + 60, 425);
+  ctx.quadraticCurveTo(cx + 78, 460, cx + 88, 510);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.save();
+  ctx.shadowColor = 'rgba(168, 85, 247, 0.8)';
+  ctx.shadowBlur = 12;
+  ctx.strokeStyle = 'rgba(168, 85, 247, 0.4)';
+  ctx.lineWidth = 2.2;
+  ctx.beginPath();
+  ctx.moveTo(cx - 87, 396 + breath);
+  ctx.bezierCurveTo(cx - 132, 406 + breath, cx - 205, 427 + breath, cx - 245, 495);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(cx + 87, 396 + breath);
+  ctx.bezierCurveTo(cx + 132, 406 + breath, cx + 205, 427 + breath, cx + 245, 495);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.fillStyle = '#04040a';
+  ctx.beginPath();
+  ctx.moveTo(cx - 205, 465);
+  ctx.quadraticCurveTo(cx - 175, 490, cx - 135, H);
+  ctx.lineTo(cx - 240, H);
+  ctx.quadraticCurveTo(cx - 250, 508, cx - 205, 465);
+  ctx.closePath();
+  ctx.fill();
+  ctx.beginPath();
+  ctx.moveTo(cx + 205, 465);
+  ctx.quadraticCurveTo(cx + 175, 490, cx + 135, H);
+  ctx.lineTo(cx + 240, H);
+  ctx.quadraticCurveTo(cx + 250, 508, cx + 205, 465);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.fillStyle = '#08080f';
+  ctx.beginPath();
+  ctx.moveTo(cx + 68, 400 + breath);
+  ctx.bezierCurveTo(cx + 85, 380 + breath, cx + 92, 340 + breath, cx + 92, 305 + breath);
+  ctx.bezierCurveTo(cx + 92, 265 + breath, cx + 82, 230 + breath, cx + 55, 215 + breath);
+  ctx.bezierCurveTo(cx + 30, 205 + breath, cx - 30, 205 + breath, cx - 55, 215 + breath);
+  ctx.bezierCurveTo(cx - 82, 230 + breath, cx - 92, 265 + breath, cx - 92, 305 + breath);
+  ctx.bezierCurveTo(cx - 92, 340 + breath, cx - 85, 380 + breath, cx - 68, 400 + breath);
+  ctx.quadraticCurveTo(cx, 418 + breath, cx + 68, 400 + breath);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.save();
+  ctx.shadowColor = 'rgba(168, 85, 247, 0.95)';
+  ctx.shadowBlur = 16;
+  ctx.strokeStyle = 'rgba(168, 85, 247, 0.55)';
+  ctx.lineWidth = 2.5;
+
+  ctx.beginPath();
+  ctx.moveTo(cx - 68, 400 + breath);
+  ctx.bezierCurveTo(cx - 85, 380 + breath, cx - 92, 340 + breath, cx - 92, 305 + breath);
+  ctx.bezierCurveTo(cx - 92, 265 + breath, cx - 82, 230 + breath, cx - 55, 215 + breath);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(cx + 68, 400 + breath);
+  ctx.bezierCurveTo(cx + 85, 380 + breath, cx + 92, 340 + breath, cx + 92, 305 + breath);
+  ctx.bezierCurveTo(cx + 92, 265 + breath, cx + 82, 230 + breath, cx + 55, 215 + breath);
+  ctx.stroke();
+
+  ctx.strokeStyle = 'rgba(200, 150, 255, 0.35)';
+  ctx.lineWidth = 1.8;
+  ctx.beginPath();
+  ctx.moveTo(cx - 40, 208 + breath);
+  ctx.quadraticCurveTo(cx, 200 + breath, cx + 40, 208 + breath);
+  ctx.stroke();
+  ctx.restore();
+
+  ctx.restore();
+}
+
+// ============================================================
+// СЦЕНА
+// ============================================================
+function drawScene() {
+  ctx.save();
+
+  const glitch = getGlitchIntensity();
+  if (glitch > 0.3 && Math.random() < glitch * 0.25) {
+    ctx.translate(
+      (Math.random() - 0.5) * glitch * 7,
+      (Math.random() - 0.5) * glitch * 4
+    );
+  }
+
+  const wallGrad = ctx.createLinearGradient(0, 0, 0, H);
+  wallGrad.addColorStop(0, '#030307');
+  wallGrad.addColorStop(0.5, '#080812');
+  wallGrad.addColorStop(1, '#020204');
+  ctx.fillStyle = wallGrad;
+  ctx.fillRect(0, 0, W, H);
+
+  const ambient = ctx.createRadialGradient(W/2, 120, 60, W/2, 120, 540);
+  ambient.addColorStop(0, 'rgba(168, 85, 247, 0.12)');
+  ambient.addColorStop(1, 'rgba(168, 85, 247, 0)');
+  ctx.fillStyle = ambient;
+  ctx.fillRect(0, 0, W, H);
+
+  for (const m of monitors) drawMonitorStand(m);
+  for (const m of monitors) drawMonitor(m);
+  drawDeskKeyboard();
+  drawHacker();
+  drawParticles();
+
+  const vig = ctx.createRadialGradient(W/2, H/2, 200, W/2, H/2, 620);
+  vig.addColorStop(0, 'rgba(0, 0, 0, 0)');
+  vig.addColorStop(1, 'rgba(0, 0, 0, 0.75)');
+  ctx.fillStyle = vig;
+  ctx.fillRect(0, 0, W, H);
+
+  if (hackProgress > 50) {
+    const intensity = (hackProgress - 50) / 50;
+    ctx.fillStyle = `rgba(120, 0, 0, ${0.08 * intensity * (0.8 + Math.random() * 0.4)})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+
+  ctx.restore();
+
+  applyGlitchBands(glitch);
+}
+function applyGlitchBands(intensity) {
+  if (intensity <= 0.05) return;
+  if (Math.random() > intensity * 0.4) return;
+
+  const count = 1 + Math.floor(intensity * 5 * Math.random());
+  for (let i = 0; i < count; i++) {
+    const sy = Math.random() * H;
+    const sh = 3 + Math.random() * 14;
+    const dx = (Math.random() - 0.5) * 55 * intensity;
+    try {
+      ctx.drawImage(canvas, 0, sy, W, sh, dx, sy, W, sh);
+    } catch(e) {}
+  }
+  if (Math.random() < intensity * 0.08) {
+    ctx.fillStyle = `rgba(255, 30, 30, ${0.08 * intensity})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+  if (Math.random() < intensity * 0.08) {
+    ctx.fillStyle = `rgba(168, 85, 247, ${0.06 * intensity})`;
+    ctx.fillRect(0, 0, W, H);
+  }
+}
+
+// ============================================================
+// ВОПРОСЫ
+// ============================================================
+function initQuestionPool() {
+  const qs = LEVELS[currentLevel].questions;
+  totalQuestions = qs.length;
+  questionPool = shuffle(qs);
+}
+
+function updateQuestionCounter() {
+  const answered = totalQuestions - questionPool.length;
+  hackQCount.textContent = `${answered} / ${totalQuestions}`;
+}
+
+function updateTimerDisplay() {
+  if (gameOver) {
+    hackTimer.textContent = '--';
+    return;
+  }
+  const remaining = Math.max(0, getQuestionInterval() - questionTimer);
+  hackTimer.textContent = Math.ceil(remaining) + 's';
+}
+
+function pickQuestion() {
+  if (gameOver) return;
+  if (questionPool.length === 0) { finishGame(); return; }
+
+  const q = questionPool.pop();
+  const options = shuffle([q.correct, ...q.wrong]);
+  currentQuestion = { text: q.q, correct: q.correct, options };
+
+  questionEl.textContent = q.q;
+  answersEl.innerHTML = '';
+  options.forEach(opt => {
+    const btn = document.createElement('button');
+    btn.textContent = opt;
+    btn.onclick = () => onAnswerClick(btn);
+    answersEl.appendChild(btn);
+  });
+  statusEl.textContent = '';
+  updateQuestionCounter();
+}
+function onAnswerClick(btn) {
+  if (answering || gameOver) return;
+  resolveQuestion(btn.textContent === currentQuestion.correct, btn);
+}
+function resolveQuestion(wasCorrect, selectedBtn) {
+  if (answering || gameOver) return;
+  answering = true;
+  questionTimer = 0;
+
+  const buttons = answersEl.querySelectorAll('button');
+  buttons.forEach(btn => {
+    btn.disabled = true;
+    if (selectedBtn && btn === selectedBtn && !wasCorrect) {
+      btn.classList.add('wrong');
+    }
+  });
+
+  const m = monitors[Math.floor(Math.random() * monitors.length)];
+  const mcx = m.x + m.w / 2;
+  const mcy = m.y + m.h / 2;
+
+  if (wasCorrect) {
+    correctCount++;
+    m.errorTimer = FEEDBACK_CORRECT / 1000;
+    hackProgress = Math.max(0, hackProgress - CORRECT_ROLLBACK);
+    statusEl.textContent = `>> EXPLOIT FAILED  ·  −${CORRECT_ROLLBACK}%`;
+    statusEl.style.color = '#a855f7';
+    playCorrect();
+    spawnGreenBurst(mcx, mcy, 20);
+    setTimeout(nextQuestion, FEEDBACK_CORRECT);
+  } else {
+    wrongCount++;
+    m.lockAnim = { t: 0, dur: FEEDBACK_WRONG / 1000 };
+    hackProgress = Math.min(HACK_MAX, hackProgress + WRONG_PENALTY);
+    statusEl.textContent = selectedBtn
+      ? `>> ACCESS GRANTED  ·  +${WRONG_PENALTY}%`
+      : `>> TIME OUT  ·  +${WRONG_PENALTY}%`;
+    statusEl.style.color = '#ef4444';
+    playWrong();
+    spawnRedBurst(mcx, mcy, 24);
+    setTimeout(nextQuestion, FEEDBACK_WRONG);
+  }
+
+  updateHackUI();
+  if (hackProgress >= HACK_MAX) setTimeout(() => breach(), FEEDBACK_WRONG);
+}
+function nextQuestion() {
+  if (gameOver) return;
+  answering = false;
+  pickQuestion();
+}
+
+// ============================================================
+// ЗАВЕРШЕНИЕ ИГРЫ (все вопросы отвечены)
+//   ≥ 70% — победа
+//   < 70% — проигрыш, шкала заполняется на 100%
+// ============================================================
+function finishGame() {
+  if (gameOver) return;
+
+  const accuracy = totalQuestions > 0 ? correctCount / totalQuestions : 0;
+
+  if (accuracy >= WIN_THRESHOLD) {
+    winGame();
+  } else {
+    loseByAccuracy();
+  }
+}
+
+// ============================================================
+// ПРОИГРЫШ ПО ТОЧНОСТИ (< 70% правильных)
+// ============================================================
+function loseByAccuracy() {
+  if (gameOver) return;
+  gameOver = true;
+
+  // Принудительно заполняем шкалу на 100%
+  hackProgress = HACK_MAX;
+  updateHackUI();
+
+  stopAmbient();
+  stopMusic();
+  playBreach();
+
+  ctx.fillStyle = 'rgba(220, 38, 38, 0.55)';
+  ctx.fillRect(0, 0, W, H);
+
+  questionEl.textContent = '>> INSUFFICIENT ACCURACY';
+  answersEl.innerHTML = '';
+  statusEl.textContent = 'Слишком много ошибок. Система скомпрометирована.';
+  statusEl.style.color = '#ef4444';
+  hackTimer.textContent = '--';
+
+  saveResult(playerNick, correctCount, elapsedTime);
+  const best = getBestForPlayer(playerNick);
+  const last = getLastForPlayer(playerNick);
+
+  const accuracy = totalQuestions > 0 ? correctCount / totalQuestions : 0;
+  const accuracyPct = Math.round(accuracy * 100);
+
+  overlay.classList.remove('win');
+  ovSub.textContent = '>> SECURITY BREACH DETECTED <<';
+  ovTitle.textContent = 'SYSTEM HACKED';
+
+  ovStats.innerHTML =
+    `💥 Точность ниже ${Math.round(WIN_THRESHOLD * 100)}% — взлом успешен<br>` +
+    `👤 Игрок: <b>${escapeHtml(playerNick)}</b><br>` +
+    `🎯 Уровень: <b>${LEVELS[currentLevel].name}</b><br>` +
+    `📊 Точность: <b style="color:#ef4444">${accuracyPct}%</b> (нужно ≥ ${Math.round(WIN_THRESHOLD * 100)}%)<br>` +
+    `⏱ Время: <b>${elapsedTime.toFixed(1)} сек</b><br>` +
+    `📈 Уровень сложности: <b>LVL ${currentLevel}</b><br>` +
+    `✅ Верных ответов: <b>${correctCount} / ${totalQuestions}</b><br>` +
+    `❌ Ошибок: <b>${wrongCount}</b>`;
+
+  ovBest.innerHTML = '';
+  if (last) {
+    ovBest.innerHTML += `<div>📝 Последний результат: <b style="color:#c4b5fd">${last.score} очков</b> за ${last.time}с</div>`;
+  }
+  if (best) {
+    ovBest.innerHTML += `<div>🏆 Лучший результат: <b style="color:#facc15">${best.score} / ${totalQuestions}</b> за ${best.time}с</div>`;
+  }
+
+  overlay.classList.add('show');
+}
+
+// ============================================================
+// UI ШКАЛЫ
+// ============================================================
+function updateHackUI() {
+  const pct = Math.min(100, Math.max(0, hackProgress));
+  hackCover.style.width = (100 - pct) + '%';
+  hackPct.textContent = Math.round(pct) + '%';
+
+  if (pct <= 70) hackPct.style.color = '#a855f7';
+  else if (pct <= 90) hackPct.style.color = '#f59e0b';
+  else hackPct.style.color = '#ef4444';
+
+  hackLevel.textContent = `LVL ${currentLevel}`;
+
+  if (currentLevel === 1) hackLevel.style.color = '#4ade80';
+  else if (currentLevel === 2) hackLevel.style.color = '#facc15';
+  else hackLevel.style.color = '#f87171';
+}
+
+// ============================================================
+// ИГРОВОЙ ЦИКЛ
+// ============================================================
+function loop(now) {
+  if (gameOver) return;
+  const dt = Math.min((now - lastTime) / 1000, 0.1);
+  lastTime = now;
+  elapsedTime += dt;
+
+  hackProgress = Math.min(HACK_MAX, hackProgress + getFillRate() * dt);
+  updateHackUI();
+
+  if (hackProgress >= HACK_MAX) { breach(); return; }
+
+  if (!answering) {
+    questionTimer += dt;
+    if (questionTimer >= getQuestionInterval()) resolveQuestion(false, null);
+  }
+
+  for (const m of monitors) updateMonitor(m, dt);
+  updateParticles(dt);
+  updateTimerDisplay();
+
+  drawScene();
+  requestAnimationFrame(loop);
+}
+
+// ============================================================
+// ВЗЛОМ (проигрыш по шкале)
+// ============================================================
+function breach() {
+  if (gameOver) return;
+  gameOver = true;
+
+  // Фиксируем шкалу на 100%
+  hackProgress = HACK_MAX;
+  updateHackUI();
+
+  stopAmbient();
+  stopMusic();
+  playBreach();
+
+  ctx.fillStyle = 'rgba(220, 38, 38, 0.55)';
+  ctx.fillRect(0, 0, W, H);
+
+  questionEl.textContent = '>> SYSTEM COMPROMISED';
+  answersEl.innerHTML = '';
+  statusEl.textContent = 'Злоумышленник получил доступ. Начни заново.';
+  statusEl.style.color = '#ef4444';
+  hackTimer.textContent = '--';
+
+  saveResult(playerNick, correctCount, elapsedTime);
+  const best = getBestForPlayer(playerNick);
+  const last = getLastForPlayer(playerNick);
+
+  overlay.classList.remove('win');
+  ovSub.textContent = '>> SECURITY BREACH DETECTED <<';
+  ovTitle.textContent = 'SYSTEM HACKED';
+
+  ovStats.innerHTML =
+    `💥 Шкала взлома заполнена<br>` +
+    `👤 Игрок: <b>${escapeHtml(playerNick)}</b><br>` +
+    `🎯 Уровень: <b>${LEVELS[currentLevel].name}</b><br>` +
+    `⏱ Продержался: <b>${elapsedTime.toFixed(1)} сек</b><br>` +
+    `📈 Уровень сложности: <b>LVL ${currentLevel}</b><br>` +
+    `✅ Отбито атак: <b>${correctCount} / ${totalQuestions}</b><br>` +
+    `❌ Пропущено: <b>${wrongCount}</b>`;
+
+  ovBest.innerHTML = '';
+  if (last) {
+    ovBest.innerHTML += `<div>📝 Последний результат: <b style="color:#c4b5fd">${last.score} очков</b> за ${last.time}с</div>`;
+  }
+  if (best) {
+    ovBest.innerHTML += `<div>🏆 Лучший результат: <b style="color:#facc15">${best.score} / ${totalQuestions}</b> за ${best.time}с</div>`;
+  }
+
+  overlay.classList.add('show');
+}
+
+// ============================================================
+// ПОБЕДА
+// ============================================================
+function winGame() {
+  if (gameOver) return;
+  gameOver = true;
+
+  // Шкала остаётся на текущем значении
+  updateHackUI();
+
+  stopAmbient();
+  stopMusic();
+  playVictory();
+
+  ctx.fillStyle = 'rgba(168, 85, 247, 0.35)';
+  ctx.fillRect(0, 0, W, H);
+
+  spawnVictoryConfetti();
+  for (let i = 0; i < 4; i++) {
+    updateParticles(0.016);
+    drawScene();
+  }
+
+  questionEl.textContent = '>> ACCESS GRANTED  ·  SYSTEM SECURED';
+  answersEl.innerHTML = '';
+  statusEl.textContent = 'Ты отразил все атаки! Система в безопасности.';
+  statusEl.style.color = '#a855f7';
+  hackTimer.textContent = '--';
+
+  saveResult(playerNick, correctCount, elapsedTime);
+  const best = getBestForPlayer(playerNick);
+  const last = getLastForPlayer(playerNick);
+
+  const accuracy = totalQuestions > 0 ? correctCount / totalQuestions : 0;
+  const accuracyPct = Math.round(accuracy * 100);
+
+  overlay.classList.add('win');
+  ovSub.textContent = '>> ALL ATTACKS REPELLED <<';
+  ovTitle.textContent = 'SYSTEM SECURED';
+
+  ovStats.innerHTML =
+    `🎉 <b style="color:#22c55e">ПОБЕДА!</b><br>` +
+    `👤 Игрок: <b>${escapeHtml(playerNick)}</b><br>` +
+    `🎯 Уровень: <b>${LEVELS[currentLevel].name}</b><br>` +
+    `📊 Точность: <b style="color:#22c55e">${accuracyPct}%</b><br>` +
+    `⏱ Время: <b>${elapsedTime.toFixed(1)} сек</b><br>` +
+    `📈 Уровень сложности: <b>LVL ${currentLevel}</b><br>` +
+    `✅ Верных ответов: <b>${correctCount} / ${totalQuestions}</b><br>` +
+    `❌ Ошибок: <b>${wrongCount}</b>`;
+
+  ovBest.innerHTML = '';
+  if (last) {
+    ovBest.innerHTML += `<div>📝 Последний результат: <b style="color:#c4b5fd">${last.score} очков</b> за ${last.time}с</div>`;
+  }
+  if (best) {
+    ovBest.innerHTML += `<div>🏆 Лучший результат: <b style="color:#facc15">${best.score} / ${totalQuestions}</b> за ${best.time}с</div>`;
+  }
+
+  overlay.classList.add('show');
+}
+
+// ============================================================
+// СТАРТ
+// ============================================================
+function startGame() {
+  hackProgress = 0;
+  gameOver = false;
+  answering = false;
+  questionTimer = 0;
+  elapsedTime = 0;
+  correctCount = 0;
+  wrongCount = 0;
+  particles = [];
+  lastTime = performance.now();
+
+  monitors = [
+    createMonitor(30, 40, 230, 170),
+    createMonitor(285, 40, 230, 170),
+    createMonitor(540, 40, 230, 170),
+  ];
+
+  initQuestionPool();
+  pickQuestion();
+  updateHackUI();
+  updateQuestionCounter();
+  updateTimerDisplay();
+
+  overlay.classList.remove('show');
+  overlay.classList.remove('win');
+  statusEl.textContent = '';
+  statusEl.style.color = '#e2e8f0';
+
+  ensureAudio();
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  if (!ambientRefs) startAmbient();
+  if (!musicRefs) startMusic();
+
+  requestAnimationFrame(loop);
+}
+
+// ============================================================
+// ЭКРАН ВВОДА НИКА
+// ============================================================
+nickInput.addEventListener('input', () => {
+  nickBtn.disabled = nickInput.value.trim().length < 2;
+});
+nickInput.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && !nickBtn.disabled) nickBtn.click();
+});
+nickBtn.addEventListener('click', () => {
+  playerNick = nickInput.value.trim();
+  if (playerNick.length < 2) return;
+  ensureAudio();
+  nickScreen.classList.add('hidden');
+  menuScreen.classList.remove('hidden');
+  hud.classList.add('hidden');
+  welcomeText.textContent = `Добро пожаловать, ${playerNick}!`;
+});
+
+// ============================================================
+// ЭКРАН МЕНЮ
+// ============================================================
+document.querySelectorAll('.level-card').forEach(card => {
+  card.addEventListener('click', () => {
+    currentLevel = parseInt(card.dataset.level, 10);
+    menuScreen.classList.add('hidden');
+    hud.classList.remove('hidden');
+    startGame();
+  });
+});
+
+// ============================================================
+// ЭКРАН РЕЗУЛЬТАТОВ
+// ============================================================
+function renderResults() {
+  const results = loadResults();
+  const players = Object.values(results);
+
+  const rows = [];
+  for (const p of players) {
+    if (!p || !Array.isArray(p.scores)) continue;
+    for (const s of p.scores) {
+      rows.push({
+        nick: p.nick || 'unknown',
+        score: Number(s.score) || 0,
+        time: Number(s.time) || 0,
+        level: s.level || 1,
+        date: s.date || ''
+      });
+    }
+  }
+
+  rows.sort((a, b) => (b.score - a.score) || (a.time - b.time));
+
+  resultsTbody.innerHTML = '';
+
+  if (rows.length === 0) {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td colspan="5" class="empty-msg">Пока нет результатов.<br>Сыграй первую игру!</td>`;
+    resultsTbody.appendChild(tr);
+    return;
+  }
+
+  const levelNames = { 1: 'Лёгкий', 2: 'Средний', 3: 'Сложный' };
+
+  rows.slice(0, 50).forEach((r, i) => {
+    const tr = document.createElement('tr');
+    if (playerNick && r.nick.toLowerCase() === playerNick.toLowerCase()) {
+      tr.classList.add('you');
+    }
+    tr.innerHTML =
+      `<td>${i + 1}</td>` +
+      `<td>${escapeHtml(r.nick)}</td>` +
+      `<td>${r.score}</td>` +
+      `<td>${r.time.toFixed(1)}с</td>` +
+      `<td>${levelNames[r.level] || r.level}</td>`;
+    resultsTbody.appendChild(tr);
+  });
+}
+
+showResultsBtn.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  resultsBackTarget = 'menu';
+  renderResults();
+  menuScreen.classList.add('hidden');
+  resultsScreen.classList.remove('hidden');
+});
+
+ovResultsBtn.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  resultsBackTarget = 'overlay';
+  overlay.classList.remove('show');
+  renderResults();
+  resultsScreen.classList.remove('hidden');
+});
+
+resultsBack.addEventListener('click', (e) => {
+  e.preventDefault();
+  e.stopPropagation();
+  resultsScreen.classList.add('hidden');
+  if (resultsBackTarget === 'menu') {
+    menuScreen.classList.remove('hidden');
+    welcomeText.textContent = `Добро пожаловать, ${playerNick}!`;
+  } else {
+    overlay.classList.add('show');
+  }
+});
+
+// ============================================================
+// КНОПКА "TRY AGAIN" — возврат в меню
+// ============================================================
+ovBtn.addEventListener('click', () => {
+  overlay.classList.remove('show');
+  overlay.classList.remove('win');
+  menuScreen.classList.remove('hidden');
+  hud.classList.add('hidden');
+  welcomeText.textContent = `Добро пожаловать, ${playerNick}!`;
+});
+
+// ============================================================
+// ИНИЦИАЛИЗАЦИЯ: показываем только экран ввода ника
+// ============================================================
+nickScreen.classList.remove('hidden');
+menuScreen.classList.add('hidden');
+resultsScreen.classList.add('hidden');   // ← ИСПРАВЛЕНО
+overlay.classList.remove('show');
+</script>
+</body>
+</html>
